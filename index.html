@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chic Light Calendar (Scoped Drawing)</title>
+    <title>Chic Light Calendar (iPad Touch Supported)</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -27,6 +27,7 @@
             padding: 0;
             font-family: 'Montserrat', 'Noto Sans TC', sans-serif;
             user-select: none;
+            -webkit-user-select: none; /* 針對 iOS 最佳化，防止長按選取文字 */
         }
 
         body {
@@ -117,13 +118,13 @@
             flex: 1;
             position: relative;
             padding: 20px 40px;
-            overflow: hidden; /* 由各面板自行控制滾動，避免畫布錯位 */
+            overflow: hidden;
         }
 
         .view-panel {
             display: none;
             height: 100%;
-            position: relative; /* 讓 Canvas 能精準覆蓋在面板內 */
+            position: relative;
             overflow-y: auto;
         }
 
@@ -131,7 +132,7 @@
             display: block;
         }
 
-        /* 畫布層：現在附屬於各檢視面板內 */
+        /* 畫布層 */
         #canvas-overlay {
             position: absolute;
             top: 0;
@@ -140,11 +141,11 @@
             height: 100%;
             pointer-events: none;
             z-index: 5;
+            touch-action: none; /* 阻止 iOS 預設的滾動與縮放行為 */
         }
 
         #canvas-overlay.active {
             pointer-events: auto;
-            cursor: crosshair;
         }
 
         /* 年曆 */
@@ -421,7 +422,7 @@
             line-height: 1.3;
             cursor: pointer;
             transition: all 0.2s;
-            z-index: 2; /* 確保在畫布點擊時若沒開畫圖模式仍能點到 */
+            z-index: 2;
         }
 
         .event-block:hover {
@@ -808,7 +809,6 @@
                 document.getElementById('view-week').classList.add('active');
             }
             
-            // 重要：視角切換後，重新定位並載入對應視角的畫布內容
             adaptCanvasToCurrentView();
         }
 
@@ -1174,7 +1174,7 @@
             }
         }
 
-        // ================= 核心重構：分流綁定畫布系統 =================
+        // ================= 升級版：支援滑鼠與 iPad 觸控的畫布系統 =================
         let canvas, ctx;
         let isDrawingMode = false;
         let isDrawing = false;
@@ -1184,14 +1184,12 @@
         let undoStack = [];
         let redoStack = [];
 
-        // 取得目前頁面專屬的 Storage Key 識別碼
         function getCurrentStorageKey() {
             if (currentView === 'year') {
                 return `draw_year_${currentYear}`;
             } else if (currentView === 'month') {
                 return `draw_month_${currentYear}_${currentMonth}`;
             } else if (currentView === 'week') {
-                // 用該週週一的日期作為唯一 key
                 const y = currentWeekStartDate.getFullYear();
                 const m = currentWeekStartDate.getMonth();
                 const d = currentWeekStartDate.getDate();
@@ -1204,15 +1202,20 @@
             canvas = document.getElementById('canvas-overlay');
             ctx = canvas.getContext('2d');
             
+            // 監聽傳統滑鼠事件
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseleave', stopDrawing);
             
+            // 監聽 iPad / 觸控螢幕事件
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+            
             adaptCanvasToCurrentView();
         }
 
-        // 切換視角或時間範圍時，自動重組 Canvas 附屬關係並讀取資料
         function adaptCanvasToCurrentView() {
             if(!canvas) return;
 
@@ -1221,16 +1224,12 @@
             if (currentView === 'month') targetPanel = document.getElementById('view-month');
             if (currentView === 'week') targetPanel = document.getElementById('view-week');
             
-            // 將 Canvas 實體移入當前活躍的容器中，確保它的相對定位與滾動範圍正確
             targetPanel.appendChild(canvas);
-            
             resizeCanvas();
             
-            // 清空目前的撤銷/重做佇列
             undoStack = [];
             redoStack = [];
             
-            // 讀取此範圍專屬的塗鴉紀錄
             const key = getCurrentStorageKey();
             const savedData = localStorage.getItem(key);
             
@@ -1244,7 +1243,7 @@
                     undoStack.push(canvas.toDataURL());
                 }
             } else {
-                saveCanvasState(); // 存入一張空白底圖作為撤銷基底
+                saveCanvasState();
             }
         }
 
@@ -1252,7 +1251,6 @@
             const parent = canvas.parentElement;
             if(!parent) return;
 
-            // 備份縮放前內容
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
@@ -1261,7 +1259,6 @@
                 tempCtx.drawImage(canvas, 0, 0);
             }
 
-            // 讓畫布撐滿整個特定檢視面板的滾動寬高
             canvas.width = parent.scrollWidth;
             canvas.height = parent.scrollHeight;
             
@@ -1297,23 +1294,21 @@
             document.getElementById('btn-eraser').classList.add('active');
         }
 
-        function startDrawing(e) {
+        // --- 繪圖邏輯核心 ---
+        function startDrawingProcess(clientX, clientY) {
             if(!isDrawingMode) return;
             isDrawing = true;
             redoStack = [];
             ctx.beginPath();
             const rect = canvas.getBoundingClientRect();
-            // 考量滾動條帶來的位移補正
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            ctx.moveTo(x, y);
+            ctx.moveTo(clientX - rect.left, clientY - rect.top);
         }
 
-        function draw(e) {
+        function drawProcess(clientX, clientY) {
             if(!isDrawing || !isDrawingMode) return;
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
 
             ctx.lineWidth = isEraserMode ? 24 : brushSize;
             ctx.lineCap = 'round';
@@ -1331,7 +1326,7 @@
             }
         }
 
-        function stopDrawing() {
+        function stopDrawingProcess() {
             if(isDrawing) {
                 isDrawing = false;
                 ctx.closePath();
@@ -1339,12 +1334,37 @@
             }
         }
 
+        // --- 滑鼠事件對接 ---
+        function startDrawing(e) { startDrawingProcess(e.clientX, e.clientY); }
+        function draw(e) { drawProcess(e.clientX, e.clientY); }
+        function stopDrawing() { stopDrawingProcess(); }
+
+        // --- iPad / 觸控事件對接 ---
+        function handleTouchStart(e) {
+            if(!isDrawingMode) return;
+            e.preventDefault(); // 阻止頁面滾動
+            const touch = e.touches[0];
+            startDrawingProcess(touch.clientX, touch.clientY);
+        }
+
+        function handleTouchMove(e) {
+            if(!isDrawingMode) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            drawProcess(touch.clientX, touch.clientY);
+        }
+
+        function handleTouchEnd(e) {
+            if(!isDrawingMode) return;
+            stopDrawingProcess();
+        }
+
+        // --- 狀態儲存與撤銷邏輯 ---
         function saveCanvasState() {
             const dataUrl = canvas.toDataURL();
             undoStack.push(dataUrl);
             if(undoStack.length > 25) undoStack.shift();
             
-            // 寫入當前頁面對應的儲存空間
             const key = getCurrentStorageKey();
             localStorage.setItem(key, dataUrl);
         }
@@ -1385,7 +1405,7 @@
             redoStack = [];
             const key = getCurrentStorageKey();
             localStorage.removeItem(key);
-            saveCanvasState(); // 重新存入空白基底
+            saveCanvasState();
         }
     </script>
 </body>
