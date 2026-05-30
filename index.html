@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chic Light Calendar (Scoped Drawing)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 亮色莫蘭迪質感配色 */
+            --bg-main: #f9f8f4;       /* 溫潤的燕麥奶油白 */
+            --bg-card: #ffffff;       /* 純白卡片襯底 */
+            --bg-input: #f1efe9;      /* 微暖調灰色輸入框 */
+            --text-main: #3c3c43;     /* 深碳灰 */
+            --text-muted: #9a9893;    /* 霧感灰褐 */
+            --border-color: #e5e2da;  /* 細緻的暖調邊框線 */
+            --accent-color: #93a291;  /* 莫蘭迪鼠尾草綠 */
+            --accent-hover: #7f8e7d;
+            --danger-color: #d98880;  /* 柔煙粉紅 */
+            --danger-hover: #c5746c;
+            --shadow: 0 8px 32px rgba(180, 175, 165, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', 'Noto Sans TC', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            z-index: 10;
+        }
+
+        .nav-left {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-btn {
+            font-size: 1.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+
+        .nav-btn.active, .nav-btn:hover {
+            color: var(--accent-color);
+        }
+
+        .nav-right {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        button {
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            border-color: var(--accent-color);
+            background-color: var(--bg-main);
+        }
+
+        button.primary {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            border: none;
+        }
+
+        button.primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button.danger {
+            background-color: transparent;
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+        }
+
+        button.danger:hover {
+            background-color: var(--danger-color);
+            color: #ffffff;
+        }
+
+        button.active {
+            background-color: var(--accent-color);
+            color: #ffffff;
+        }
+
+        main {
+            flex: 1;
+            position: relative;
+            padding: 20px 40px;
+            overflow: hidden; /* 由各面板自行控制滾動，避免畫布錯位 */
+        }
+
+        .view-panel {
+            display: none;
+            height: 100%;
+            position: relative; /* 讓 Canvas 能精準覆蓋在面板內 */
+            overflow-y: auto;
+        }
+
+        .view-panel.active {
+            display: block;
+        }
+
+        /* 畫布層：現在附屬於各檢視面板內 */
+        #canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        #canvas-overlay.active {
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+
+        /* 年曆 */
+        .year-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            padding: 20px 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .year-month-box {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid transparent;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.02);
+        }
+
+        .year-month-box:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-color);
+            box-shadow: var(--shadow);
+        }
+
+        .year-month-title {
+            color: var(--accent-color);
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .year-month-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* 月曆 */
+        .month-view-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .month-header-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 500;
+            color: var(--accent-color);
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: 120px;
+            gap: 8px;
+        }
+
+        .month-day-cell {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: 1px solid rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.01);
+        }
+
+        .month-day-cell:hover {
+            background: var(--bg-input);
+        }
+
+        .month-day-cell.other-month {
+            opacity: 0.25;
+        }
+
+        .month-day-num {
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .month-event-dot-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            overflow: hidden;
+        }
+
+        .month-event-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        /* 週曆 */
+        .week-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-width: 800px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .week-header {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+            background: var(--bg-card);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .week-header-cell {
+            padding: 12px 0;
+            border-left: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .week-header-cell:first-child {
+            border-left: none;
+            cursor: default;
+        }
+
+        .week-day-name {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .week-day-date {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .all-day-row {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            background: #fdfdfb;
+            border-bottom: 1px solid var(--border-color);
+            min-height: 45px;
+        }
+
+        .all-day-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-right: 1px solid var(--border-color);
+        }
+
+        .all-day-cell {
+            padding: 6px;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .week-grid-scroll {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            max-height: 45vh;
+            background: var(--bg-card);
+            border-radius: 0 0 8px 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .week-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            position: relative;
+        }
+
+        .time-label-col {
+            display: grid;
+            grid-template-rows: repeat(16, 60px);
+            background: #fafaf8;
+        }
+
+        .time-label {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding-top: 4px;
+            border-bottom: 1px dashed rgba(0,0,0,0.03);
+        }
+
+        .week-columns-container {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-column: 2 / span 7;
+            position: relative;
+        }
+
+        .week-day-col {
+            display: grid;
+            grid-template-rows: repeat(16, 60px);
+            border-left: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .week-day-col:first-child {
+            border-left: none;
+        }
+
+        .hour-cell {
+            border-bottom: 1px solid rgba(0,0,0,0.02);
+        }
+
+        /* 備註欄 */
+        .week-notes-area {
+            margin-top: 15px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.01);
+        }
+
+        .week-notes-area h3 {
+            font-size: 0.9rem;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .week-notes-area textarea {
+            width: 100%;
+            height: 60px;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            resize: none;
+            outline: none;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* 事件方塊 */
+        .event-block {
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #4a4a4a;
+            overflow: hidden;
+            border-left: 4px solid rgba(0,0,0,0.1);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            line-height: 1.3;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 2; /* 確保在畫布點擊時若沒開畫圖模式仍能點到 */
+        }
+
+        .event-block:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            filter: brightness(0.97);
+        }
+
+        .all-day-block {
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #4a4a4a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+            z-index: 2;
+        }
+
+        /* 畫圖工具列 */
+        #drawing-toolbar {
+            display: none;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            gap: 12px;
+            align-items: center;
+            box-shadow: var(--shadow);
+        }
+
+        #drawing-toolbar.active {
+            display: flex;
+        }
+
+        .color-picker {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .color-picker.active {
+            border-color: var(--text-main);
+        }
+
+        /* 彈出視窗 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(60, 60, 67, 0.15);
+            backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 30px;
+            width: 420px;
+            box-shadow: var(--shadow);
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .form-row-inline {
+            display: flex;
+            align-items: center;
+        }
+
+        .time-range-inputs {
+            display: flex;
+            gap: 10px;
+        }
+
+        .color-select-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .color-opt {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .color-opt.selected {
+            border-color: var(--text-main);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 24px;
+        }
+
+        .modal-actions-right {
+            display: flex;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="nav-left">
+            <div class="nav-btn" id="btn-year-view" onclick="switchView('year')">2026年</div>
+            <div class="nav-btn active" id="btn-month-view" onclick="switchView('month')">5月</div>
+        </div>
+        
+        <div id="drawing-toolbar">
+            <div class="color-picker active" style="background: #e8b4b0;" onclick="setDrawColor('#e8b4b0', this)"></div>
+            <div class="color-picker" style="background: #b2c8bb;" onclick="setDrawColor('#b2c8bb', this)"></div>
+            <div class="color-picker" style="background: #b9cbe3;" onclick="setDrawColor('#b9cbe3', this)"></div>
+            <div class="color-picker" style="background: #e3d2b9;" onclick="setDrawColor('#e3d2b9', this)"></div>
+            <button onclick="setEraser()" id="btn-eraser">橡皮擦</button>
+            <button onclick="undoDraw()">上一步</button>
+            <button onclick="redoDraw()">下一步</button>
+        </div>
+
+        <div class="nav-right">
+            <button id="btn-draw-toggle" onclick="toggleDrawingMode()">畫圖</button>
+            <button class="primary" onclick="openEventModalForAdd()">＋ 新增事件</button>
+        </div>
+    </header>
+
+    <main id="main-content">
+        <canvas id="canvas-overlay"></canvas>
+
+        <div id="view-year" class="view-panel">
+            <div class="year-grid" id="year-grid-container"></div>
+        </div>
+
+        <div id="view-month" class="view-panel active">
+            <div class="month-view-container">
+                <div class="month-header-grid">
+                    <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+                </div>
+                <div class="month-grid" id="month-grid-container"></div>
+            </div>
+        </div>
+
+        <div id="view-week" class="view-panel">
+            <div class="week-container">
+                <div class="week-header" id="week-header-row"></div>
+                <div class="all-day-row" id="week-all-day-row"></div>
+                <div class="week-grid-scroll">
+                    <div class="week-grid">
+                        <div class="time-label-col" id="time-label-column"></div>
+                        <div class="week-columns-container" id="week-columns-container"></div>
+                    </div>
+                </div>
+                <div class="week-notes-area">
+                    <h3>本週備註欄</h3>
+                    <textarea id="week-notes-input" placeholder="在此處寫下您本週的隨手筆記..."></textarea>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="event-modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-view-title">新增行事曆事件</div>
+            <input type="hidden" id="editing-event-id">
+
+            <div class="form-group">
+                <label>事件名稱</label>
+                <input type="text" id="event-title" placeholder="例如：生日、桌球課" required>
+            </div>
+
+            <div class="form-group">
+                <label>日期</label>
+                <input type="date" id="event-date" required>
+            </div>
+
+            <div class="form-group form-row-inline">
+                <input type="checkbox" id="event-allday" onchange="toggleModalTimeFields()">
+                <label for="event-allday" style="margin-bottom:0; cursor:pointer;">此事件為整日事件</label>
+            </div>
+
+            <div class="form-group" id="modal-time-range">
+                <label>時間範圍 (7:00 - 22:00)</label>
+                <div class="time-range-inputs">
+                    <select id="event-start-time"></select>
+                    <span style="align-self:center; color:var(--text-muted);">至</span>
+                    <select id="event-end-time"></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <input type="checkbox" id="event-repeat" onchange="toggleModalRepeatFields()">
+                <label for="event-repeat" style="display:inline; cursor:pointer;">重複此事件</label>
+            </div>
+
+            <div id="modal-repeat-details" style="display: none; border-left: 2px solid var(--accent-color); padding-left: 12px; margin-bottom: 16px;">
+                <div class="form-group">
+                    <label>重複頻率</label>
+                    <select id="event-repeat-type">
+                        <option value="weekly">每週</option>
+                        <option value="monthly">每月</option>
+                        <option value="yearly">每年</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>結束條件</label>
+                    <select id="event-end-condition" onchange="toggleModalEndDatePicker()">
+                        <option value="never">永久重複</option>
+                        <option value="date">指定結束日期</option>
+                    </select>
+                </div>
+                <div class="form-group" id="modal-repeat-end-date-wrapper" style="display:none;">
+                    <label>重複結束日期</label>
+                    <input type="date" id="event-repeat-end-date">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>標籤顏色</label>
+                <div class="color-select-group">
+                    <div class="color-opt selected" style="background:#e8b4b0;" data-color="#e8b4b0"></div>
+                    <div class="color-opt" style="background:#b2c8bb;" data-color="#b2c8bb"></div>
+                    <div class="color-opt" style="background:#b9cbe3;" data-color="#b9cbe3"></div>
+                    <div class="color-opt" style="background:#e3d2b9;" data-color="#e3d2b9"></div>
+                    <div class="color-opt" style="background:#d1c4e9;" data-color="#d1c4e9"></div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <div>
+                    <button class="danger" id="btn-delete-event" style="display: none;" onclick="deleteCurrentEvent()">刪除</button>
+                </div>
+                <div class="modal-actions-right">
+                    <button onclick="closeEventModal()">取消</button>
+                    <button class="primary" onclick="saveEvent()">確認儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentYear = 2026;
+        let currentMonth = 4; // 5月
+        let currentWeekStartDate = new Date(2026, 4, 4); 
+        let currentView = 'month'; 
+        
+        let events = JSON.parse(localStorage.getItem('chic_calendar_events')) || [
+            {
+                id: 'all-day-birthday',
+                title: '生日 🎂',
+                date: '2026-07-07',
+                isAllDay: true,
+                isRepeat: true,
+                repeatType: 'yearly',
+                endCondition: 'never',
+                color: '#d1c4e9'
+            },
+            {
+                id: 'pingpong-class',
+                title: '桌球課 🏓',
+                date: '2026-05-06',
+                isAllDay: false,
+                startTime: 18,
+                endTime: 21,
+                isRepeat: true,
+                repeatType: 'weekly',
+                endCondition: 'date',
+                endDate: '2026-06-03',
+                color: '#b9cbe3'
+            }
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initTimeSelectOptions();
+            initColorSelector();
+            initCanvas();
+            initNotesArea();
+            renderCalendarData();
+            window.addEventListener('resize', resizeCanvas);
+        });
+
+        function initTimeSelectOptions() {
+            const startSelect = document.getElementById('event-start-time');
+            const endSelect = document.getElementById('event-end-time');
+            for(let h=7; h<=21; h++) {
+                startSelect.innerHTML += `<option value="${h}">${h}:00</option>`;
+            }
+            for(let h=8; h<=22; h++) {
+                endSelect.innerHTML += `<option value="${h}">${h}:00</option>`;
+            }
+        }
+
+        function initColorSelector() {
+            const opts = document.querySelectorAll('.color-opt');
+            opts.forEach(opt => {
+                opt.addEventListener('click', () => {
+                    opts.forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                });
+            });
+        }
+
+        function initNotesArea() {
+            const notesInput = document.getElementById('week-notes-input');
+            notesInput.value = localStorage.getItem('chic_calendar_notes') || '';
+            notesInput.addEventListener('input', () => {
+                localStorage.setItem('chic_calendar_notes', notesInput.value);
+            });
+        }
+
+        function syncEventsToStorage() {
+            localStorage.setItem('chic_calendar_events', JSON.stringify(events));
+        }
+
+        function renderCalendarData() {
+            document.getElementById('btn-year-view').innerText = `${currentYear}年`;
+            document.getElementById('btn-month-view').innerText = `${currentMonth + 1}月`;
+            renderYearView();
+            renderMonthView();
+            renderWeekView();
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-left .nav-btn').forEach(b => b.classList.remove('active'));
+            
+            if(view === 'year') {
+                document.getElementById('view-year').classList.add('active');
+                document.getElementById('btn-year-view').classList.add('active');
+            } else if(view === 'month') {
+                document.getElementById('view-month').classList.add('active');
+                document.getElementById('btn-month-view').classList.add('active');
+            } else if(view === 'week') {
+                document.getElementById('view-week').classList.add('active');
+            }
+            
+            // 重要：視角切換後，重新定位並載入對應視角的畫布內容
+            adaptCanvasToCurrentView();
+        }
+
+        // 年曆
+        function renderYearView() {
+            const container = document.getElementById('year-grid-container');
+            container.innerHTML = '';
+            for(let m=0; m<12; m++) {
+                const box = document.createElement('div');
+                box.className = 'year-month-box';
+                box.onclick = () => {
+                    currentMonth = m;
+                    switchView('month');
+                    renderCalendarData();
+                };
+                let monthTitle = document.createElement('div');
+                monthTitle.className = 'year-month-title';
+                monthTitle.innerText = `${m+1}月`;
+                box.appendChild(monthTitle);
+                
+                let daysGrid = document.createElement('div');
+                daysGrid.className = 'year-month-days';
+                for(let d=1; d<=28; d++) {
+                    let dDiv = document.createElement('div');
+                    dDiv.innerText = d;
+                    daysGrid.appendChild(dDiv);
+                }
+                box.appendChild(daysGrid);
+                container.appendChild(box);
+            }
+        }
+
+        // 月曆
+        function renderMonthView() {
+            const container = document.getElementById('month-grid-container');
+            container.innerHTML = '';
+            let firstDayIndex = new Date(currentYear, currentMonth, 1).getDay(); 
+            firstDayIndex = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+            
+            const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const prevMonthTotalDays = new Date(currentYear, currentMonth, 0).getDate();
+            
+            for(let i = firstDayIndex - 1; i >= 0; i--) {
+                const cell = document.createElement('div');
+                cell.className = 'month-day-cell other-month';
+                cell.innerHTML = `<div class="month-day-num">${prevMonthTotalDays - i}</div>`;
+                container.appendChild(cell);
+            }
+            
+            for(let d=1; d<=totalDays; d++) {
+                const cell = document.createElement('div');
+                cell.className = 'month-day-cell';
+                
+                const dayNum = document.createElement('div');
+                dayNum.className = 'month-day-num';
+                dayNum.innerText = d;
+                cell.appendChild(dayNum);
+                
+                const currentDateObj = new Date(currentYear, currentMonth, d);
+                const matchedEvents = getEventsForDate(currentDateObj);
+                
+                if(matchedEvents.length > 0) {
+                    const dotContainer = document.createElement('div');
+                    dotContainer.className = 'month-event-dot-container';
+                    matchedEvents.forEach(e => {
+                        const dot = document.createElement('div');
+                        dot.className = 'month-event-dot';
+                        dot.style.backgroundColor = e.color;
+                        dot.onclick = (event) => {
+                            event.stopPropagation();
+                            openEventModalForEdit(e.id);
+                        };
+                        dotContainer.appendChild(dot);
+                    });
+                    cell.appendChild(dotContainer);
+                }
+                
+                cell.onclick = () => {
+                    jumpToWeekView(new Date(currentYear, currentMonth, d));
+                };
+                container.appendChild(cell);
+            }
+        }
+
+        function jumpToWeekView(targetDate) {
+            const day = targetDate.getDay();
+            const diff = targetDate.getDate() - day + (day === 0 ? -6 : 1);
+            currentWeekStartDate = new Date(targetDate.setDate(diff));
+            switchView('week');
+            renderCalendarData();
+        }
+
+        // 週曆
+        function renderWeekView() {
+            const headerRow = document.getElementById('week-header-row');
+            const allDayRow = document.getElementById('week-all-day-row');
+            const timeCol = document.getElementById('time-label-column');
+            const columnsContainer = document.getElementById('week-columns-container');
+            
+            headerRow.innerHTML = '<div class="week-header-cell"><div class="week-day-name">時段</div></div>';
+            allDayRow.innerHTML = '<div class="all-day-label">整日事件</div>';
+            timeCol.innerHTML = '';
+            columnsContainer.innerHTML = '';
+            
+            const daysNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            let weekDates = [];
+            
+            for(let i=0; i<7; i++) {
+                let d = new Date(currentWeekStartDate);
+                d.setDate(currentWeekStartDate.getDate() + i);
+                weekDates.push(d);
+                
+                const headerCell = document.createElement('div');
+                headerCell.className = 'week-header-cell';
+                headerCell.innerHTML = `
+                    <div class="week-day-name">${daysNames[i]}</div>
+                    <div class="week-day-date">${d.getDate()}</div>
+                `;
+                headerCell.onclick = () => {
+                    currentMonth = d.getMonth();
+                    currentYear = d.getFullYear();
+                    switchView('month');
+                    renderCalendarData();
+                };
+                headerRow.appendChild(headerCell);
+                
+                const adCell = document.createElement('div');
+                adCell.className = 'all-day-cell';
+                adCell.id = `allday-col-${i}`;
+                allDayRow.appendChild(adCell);
+                
+                const dayCol = document.createElement('div');
+                dayCol.className = 'week-day-col';
+                dayCol.id = `week-col-${i}`;
+                
+                for(let h=7; h<=22; h++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'hour-cell';
+                    dayCol.appendChild(cell);
+                }
+                columnsContainer.appendChild(dayCol);
+            }
+            
+            for(let h=7; h<=22; h++) {
+                timeCol.innerHTML += `<div class="time-label">${h}:00</div>`;
+            }
+            
+            weekDates.forEach((dateObj, dayIndex) => {
+                const dayEvents = getEventsForDate(dateObj);
+                
+                dayEvents.forEach(ev => {
+                    if(ev.isAllDay) {
+                        const adTarget = document.getElementById(`allday-col-${dayIndex}`);
+                        const block = document.createElement('div');
+                        block.className = 'all-day-block';
+                        block.style.backgroundColor = ev.color;
+                        block.innerText = ev.title;
+                        block.onclick = () => openEventModalForEdit(ev.id);
+                        adTarget.appendChild(block);
+                    } else {
+                        const startHour = ev.startTime;
+                        const endHour = ev.endTime;
+                        
+                        if(startHour >= 7 && startHour <= 22) {
+                            const colTarget = document.getElementById(`week-col-${dayIndex}`);
+                            const block = document.createElement('div');
+                            block.className = 'event-block';
+                            block.style.backgroundColor = ev.color;
+                            block.innerHTML = `<strong>${ev.title}</strong><br>${startHour}:00 - ${endHour}:00`;
+                            
+                            const topOffset = (startHour - 7) * 60;
+                            const heightSize = (endHour - startHour) * 60;
+                            
+                            block.style.top = `${topOffset + 4}px`;
+                            block.style.height = `${heightSize - 8}px`;
+                            
+                            block.onclick = () => openEventModalForEdit(ev.id);
+                            colTarget.appendChild(block);
+                        }
+                    }
+                });
+            });
+        }
+
+        function getEventsForDate(targetDate) {
+            let matched = [];
+            let tYear = targetDate.getFullYear();
+            let tMonth = targetDate.getMonth();
+            let tDate = targetDate.getDate();
+            let targetZero = new Date(tYear, tMonth, tDate).getTime();
+            
+            events.forEach(e => {
+                let eDate = new Date(e.date);
+                let eZero = new Date(eDate.getFullYear(), eDate.getMonth(), eDate.getDate()).getTime();
+                
+                if(targetZero < eZero) return;
+                
+                if(e.endCondition === 'date' && e.endDate) {
+                    let endZero = new Date(e.endDate).getTime();
+                    if(targetZero > endZero) return;
+                }
+                
+                if(!e.isRepeat) {
+                    if(targetZero === eZero) matched.push(e);
+                } else {
+                    if(e.repeatType === 'weekly') {
+                        if(eDate.getDay() === targetDate.getDay()) matched.push(e);
+                    } else if(e.repeatType === 'monthly') {
+                        if(eDate.getDate() === targetDate.getDate()) matched.push(e);
+                    } else if(e.repeatType === 'yearly') {
+                        if(eDate.getMonth() === targetDate.getMonth() && eDate.getDate() === targetDate.getDate()) {
+                            matched.push(e);
+                        }
+                    }
+                }
+            });
+            return matched;
+        }
+
+        // ================= 彈出視窗控制 =================
+        function resetModalFields() {
+            document.getElementById('editing-event-id').value = '';
+            document.getElementById('event-title').value = '';
+            document.getElementById('event-date').value = currentWeekStartDate.toISOString().split('T')[0];
+            document.getElementById('event-allday').checked = false;
+            document.getElementById('event-start-time').value = 7;
+            document.getElementById('event-end-time').value = 8;
+            document.getElementById('event-repeat').checked = false;
+            document.getElementById('event-repeat-type').value = 'weekly';
+            document.getElementById('event-end-condition').value = 'never';
+            document.getElementById('event-repeat-end-date').value = '';
+            
+            const opts = document.querySelectorAll('.color-opt');
+            opts.forEach(o => o.classList.remove('selected'));
+            opts[0].classList.add('selected');
+
+            toggleModalTimeFields();
+            toggleModalRepeatFields();
+            toggleModalEndDatePicker();
+        }
+
+        function openEventModalForAdd() {
+            resetModalFields();
+            document.getElementById('modal-view-title').innerText = '新增行事曆事件';
+            document.getElementById('btn-delete-event').style.display = 'none';
+            document.getElementById('event-modal').classList.add('active');
+        }
+
+        function openEventModalForEdit(eventId) {
+            const ev = events.find(e => e.id === eventId);
+            if(!ev) return;
+
+            resetModalFields();
+            document.getElementById('modal-view-title').innerText = '編輯行事曆事件';
+            document.getElementById('btn-delete-event').style.display = 'block';
+            
+            document.getElementById('editing-event-id').value = ev.id;
+            document.getElementById('event-title').value = ev.title;
+            document.getElementById('event-date').value = ev.date;
+            document.getElementById('event-allday').checked = ev.isAllDay;
+            
+            if(!ev.isAllDay) {
+                document.getElementById('event-start-time').value = ev.startTime;
+                document.getElementById('event-end-time').value = ev.endTime;
+            }
+            
+            document.getElementById('event-repeat').checked = ev.isRepeat;
+            if(ev.isRepeat) {
+                document.getElementById('event-repeat-type').value = ev.repeatType;
+                document.getElementById('event-end-condition').value = ev.endCondition;
+                if(ev.endCondition === 'date') {
+                    document.getElementById('event-repeat-end-date').value = ev.endDate;
+                }
+            }
+
+            const opts = document.querySelectorAll('.color-opt');
+            opts.forEach(o => {
+                o.classList.remove('selected');
+                if(o.getAttribute('data-color') === ev.color) {
+                    o.classList.add('selected');
+                }
+            });
+
+            toggleModalTimeFields();
+            toggleModalRepeatFields();
+            toggleModalEndDatePicker();
+            
+            document.getElementById('event-modal').classList.add('active');
+        }
+
+        function closeEventModal() {
+            document.getElementById('event-modal').classList.remove('active');
+        }
+
+        function toggleModalTimeFields() {
+            const isAllDay = document.getElementById('event-allday').checked;
+            document.getElementById('modal-time-range').style.display = isAllDay ? 'none' : 'block';
+        }
+
+        function toggleModalRepeatFields() {
+            const isRepeat = document.getElementById('event-repeat').checked;
+            document.getElementById('modal-repeat-details').style.display = isRepeat ? 'block' : 'none';
+        }
+
+        function toggleModalEndDatePicker() {
+            const condition = document.getElementById('event-end-condition').value;
+            document.getElementById('modal-repeat-end-date-wrapper').style.display = condition === 'date' ? 'block' : 'none';
+        }
+
+        function saveEvent() {
+            const editingId = document.getElementById('editing-event-id').value;
+            const title = document.getElementById('event-title').value.trim();
+            const date = document.getElementById('event-date').value;
+            const isAllDay = document.getElementById('event-allday').checked;
+            const startTime = parseInt(document.getElementById('event-start-time').value);
+            const endTime = parseInt(document.getElementById('event-end-time').value);
+            const isRepeat = document.getElementById('event-repeat').checked;
+            const repeatType = document.getElementById('event-repeat-type').value;
+            const endCondition = document.getElementById('event-end-condition').value;
+            const endDate = document.getElementById('event-repeat-end-date').value;
+            const color = document.querySelector('.color-opt.selected').getAttribute('data-color');
+
+            if(!title || !date) {
+                alert('請完整填寫事件名稱與日期');
+                return;
+            }
+
+            const eventData = {
+                id: editingId ? editingId : 'evt-' + Date.now(),
+                title,
+                date,
+                isAllDay,
+                startTime: isAllDay ? null : startTime,
+                endTime: isAllDay ? null : endTime,
+                isRepeat,
+                repeatType: isRepeat ? repeatType : null,
+                endCondition: isRepeat ? endCondition : null,
+                endDate: (isRepeat && endCondition === 'date') ? endDate : null,
+                color
+            };
+
+            if(editingId) {
+                const idx = events.findIndex(e => e.id === editingId);
+                if(idx !== -1) events[idx] = eventData;
+            } else {
+                events.push(eventData);
+            }
+
+            syncEventsToStorage();
+            closeEventModal();
+            renderCalendarData();
+        }
+
+        function deleteCurrentEvent() {
+            const editingId = document.getElementById('editing-event-id').value;
+            if(!editingId) return;
+
+            if(confirm('確定要永久刪除此事件嗎？')) {
+                events = events.filter(e => e.id !== editingId);
+                syncEventsToStorage();
+                closeEventModal();
+                renderCalendarData();
+            }
+        }
+
+        // ================= 核心重構：分流綁定畫布系統 =================
+        let canvas, ctx;
+        let isDrawingMode = false;
+        let isDrawing = false;
+        let drawColor = '#e8b4b0';
+        let brushSize = 3;
+        let isEraserMode = false;
+        let undoStack = [];
+        let redoStack = [];
+
+        // 取得目前頁面專屬的 Storage Key 識別碼
+        function getCurrentStorageKey() {
+            if (currentView === 'year') {
+                return `draw_year_${currentYear}`;
+            } else if (currentView === 'month') {
+                return `draw_month_${currentYear}_${currentMonth}`;
+            } else if (currentView === 'week') {
+                // 用該週週一的日期作為唯一 key
+                const y = currentWeekStartDate.getFullYear();
+                const m = currentWeekStartDate.getMonth();
+                const d = currentWeekStartDate.getDate();
+                return `draw_week_${y}_${m}_${d}`;
+            }
+            return 'draw_global';
+        }
+
+        function initCanvas() {
+            canvas = document.getElementById('canvas-overlay');
+            ctx = canvas.getContext('2d');
+            
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+            
+            adaptCanvasToCurrentView();
+        }
+
+        // 切換視角或時間範圍時，自動重組 Canvas 附屬關係並讀取資料
+        function adaptCanvasToCurrentView() {
+            if(!canvas) return;
+
+            let targetPanel;
+            if (currentView === 'year') targetPanel = document.getElementById('view-year');
+            if (currentView === 'month') targetPanel = document.getElementById('view-month');
+            if (currentView === 'week') targetPanel = document.getElementById('view-week');
+            
+            // 將 Canvas 實體移入當前活躍的容器中，確保它的相對定位與滾動範圍正確
+            targetPanel.appendChild(canvas);
+            
+            resizeCanvas();
+            
+            // 清空目前的撤銷/重做佇列
+            undoStack = [];
+            redoStack = [];
+            
+            // 讀取此範圍專屬的塗鴉紀錄
+            const key = getCurrentStorageKey();
+            const savedData = localStorage.getItem(key);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (savedData) {
+                let img = new Image();
+                img.src = savedData;
+                img.onload = () => {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.drawImage(img, 0, 0);
+                    undoStack.push(canvas.toDataURL());
+                }
+            } else {
+                saveCanvasState(); // 存入一張空白底圖作為撤銷基底
+            }
+        }
+
+        function resizeCanvas() {
+            const parent = canvas.parentElement;
+            if(!parent) return;
+
+            // 備份縮放前內容
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            if (canvas.width > 0 && canvas.height > 0) {
+                tempCtx.drawImage(canvas, 0, 0);
+            }
+
+            // 讓畫布撐滿整個特定檢視面板的滾動寬高
+            canvas.width = parent.scrollWidth;
+            canvas.height = parent.scrollHeight;
+            
+            ctx.drawImage(tempCanvas, 0, 0);
+        }
+
+        function toggleDrawingMode() {
+            isDrawingMode = !isDrawingMode;
+            const btn = document.getElementById('btn-draw-toggle');
+            const bar = document.getElementById('drawing-toolbar');
+            if(isDrawingMode) {
+                btn.classList.add('active');
+                bar.classList.add('active');
+                canvas.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+                bar.classList.remove('active');
+                canvas.classList.remove('active');
+            }
+        }
+
+        function setDrawColor(color, element) {
+            isEraserMode = false;
+            drawColor = color;
+            document.getElementById('btn-eraser').classList.remove('active');
+            document.querySelectorAll('.color-picker').forEach(p => p.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        function setEraser() {
+            isEraserMode = true;
+            document.querySelectorAll('.color-picker').forEach(p => p.classList.remove('active'));
+            document.getElementById('btn-eraser').classList.add('active');
+        }
+
+        function startDrawing(e) {
+            if(!isDrawingMode) return;
+            isDrawing = true;
+            redoStack = [];
+            ctx.beginPath();
+            const rect = canvas.getBoundingClientRect();
+            // 考量滾動條帶來的位移補正
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            ctx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if(!isDrawing || !isDrawingMode) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.lineWidth = isEraserMode ? 24 : brushSize;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if(isEraserMode) {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = drawColor;
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+        }
+
+        function stopDrawing() {
+            if(isDrawing) {
+                isDrawing = false;
+                ctx.closePath();
+                saveCanvasState();
+            }
+        }
+
+        function saveCanvasState() {
+            const dataUrl = canvas.toDataURL();
+            undoStack.push(dataUrl);
+            if(undoStack.length > 25) undoStack.shift();
+            
+            // 寫入當前頁面對應的儲存空間
+            const key = getCurrentStorageKey();
+            localStorage.setItem(key, dataUrl);
+        }
+
+        function undoDraw() {
+            if(undoStack.length <= 1) {
+                clearCanvas();
+                return;
+            }
+            let current = undoStack.pop();
+            redoStack.push(current);
+            let previousDataUrl = undoStack[undoStack.length - 1];
+            loadCanvasFromImg(previousDataUrl);
+        }
+
+        function redoDraw() {
+            if(redoStack.length === 0) return;
+            let nextDataUrl = redoStack.pop();
+            undoStack.push(nextDataUrl);
+            loadCanvasFromImg(nextDataUrl);
+        }
+
+        function loadCanvasFromImg(dataUrl) {
+            let img = new Image();
+            img.src = dataUrl;
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(img, 0, 0);
+                const key = getCurrentStorageKey();
+                localStorage.setItem(key, dataUrl);
+            }
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            undoStack = [];
+            redoStack = [];
+            const key = getCurrentStorageKey();
+            localStorage.removeItem(key);
+            saveCanvasState(); // 重新存入空白基底
+        }
+    </script>
+</body>
+</html>
