@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chic Light Calendar (iPad Touch Supported)</title>
+    <title>Chic Light Calendar (Unified Text UI)</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             /* 亮色莫蘭迪質感配色 */
             --bg-main: #f9f8f4;       /* 溫潤的燕麥奶油白 */
+            --bg-card: #ffffff;       /* 純白卡片襯底 */
+            --bg-input: #f1efe9;      /* 微暖調灰色輸入框 */
+            --text-main: #3c3c43;     /* 深碳灰 */
+            --text-muted: #9a9893;    /* 霧感灰褐 */
+            --border-color: #e5e2da;  /* 細緻的暖調邊框線 */
+            --accent-color: #93a291;  --bg-main: #f9f8f4;       /* 溫潤的燕麥奶油白 */
             --bg-card: #ffffff;       /* 純白卡片襯底 */
             --bg-input: #f1efe9;      /* 微暖調灰色輸入框 */
             --text-main: #3c3c43;     /* 深碳灰 */
@@ -27,7 +33,7 @@
             padding: 0;
             font-family: 'Montserrat', 'Noto Sans TC', sans-serif;
             user-select: none;
-            -webkit-user-select: none; /* 針對 iOS 最佳化，防止長按選取文字 */
+            -webkit-user-select: none; /* 針對 iOS 最佳化 */
         }
 
         body {
@@ -141,7 +147,7 @@
             height: 100%;
             pointer-events: none;
             z-index: 5;
-            touch-action: none; /* 阻止 iOS 預設的滾動與縮放行為 */
+            touch-action: none;
         }
 
         #canvas-overlay.active {
@@ -406,6 +412,21 @@
             line-height: 1.5;
         }
 
+        /* 行事曆整日事件方塊 */
+        .all-day-block {
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #4a4a4a;
+            border-left: 3px solid rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         /* 事件方塊 */
         .event-block {
             position: absolute;
@@ -425,55 +446,109 @@
             z-index: 2;
         }
 
-        .event-block:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            filter: brightness(0.97);
-        }
-
-        .all-day-block {
-            border-radius: 4px;
-            padding: 4px 6px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: #4a4a4a;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            cursor: pointer;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
-            z-index: 2;
-        }
-
-        /* 畫圖工具列 */
+        /* 專業塗鴉工具列 */
         #drawing-toolbar {
             display: none;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            padding: 8px 16px;
-            border-radius: 8px;
-            gap: 12px;
+            padding: 10px 20px;
+            border-radius: 12px;
+            gap: 16px;
             align-items: center;
             box-shadow: var(--shadow);
+            flex-wrap: wrap;
+            position: relative;
         }
 
         #drawing-toolbar.active {
             display: flex;
         }
 
+        .toolbar-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-right: 1px solid var(--border-color);
+            padding-right: 14px;
+        }
+
+        .toolbar-section:last-child {
+            border-right: none;
+            padding-right: 0;
+        }
+
+        .color-list {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
         .color-picker {
-            width: 24px;
-            height: 24px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             cursor: pointer;
             border: 2px solid transparent;
+            transition: transform 0.2s;
+            box-shadow: inset 0 0 2px rgba(0,0,0,0.1);
         }
 
         .color-picker.active {
             border-color: var(--text-main);
+            transform: scale(1.1);
         }
 
-        /* 彈出視窗 */
+        /* 原生調色盤容器：純圓形漸層色塊 */
+        .native-picker-wrapper {
+            position: relative;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: linear-gradient(135deg, #e8b4b0 0%, #b2c8bb 50%, #b9cbe3 100%);
+            box-shadow: inset 0 0 2px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .native-picker-wrapper:hover {
+            transform: scale(1.08);
+        }
+
+        /* 隱藏原生透明 input[type="color"] */
+        .hidden-color-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .size-selector {
+            display: flex;
+            background: var(--bg-main);
+            border-radius: 8px;
+            padding: 2px;
+        }
+
+        .size-btn {
+            border: none;
+            background: transparent;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .size-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        /* 行事曆事件彈出視窗 */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -568,11 +643,6 @@
             align-items: center;
             margin-top: 24px;
         }
-
-        .modal-actions-right {
-            display: flex;
-            gap: 12px;
-        }
     </style>
 </head>
 <body>
@@ -584,13 +654,31 @@
         </div>
         
         <div id="drawing-toolbar">
-            <div class="color-picker active" style="background: #e8b4b0;" onclick="setDrawColor('#e8b4b0', this)"></div>
-            <div class="color-picker" style="background: #b2c8bb;" onclick="setDrawColor('#b2c8bb', this)"></div>
-            <div class="color-picker" style="background: #b9cbe3;" onclick="setDrawColor('#b9cbe3', this)"></div>
-            <div class="color-picker" style="background: #e3d2b9;" onclick="setDrawColor('#e3d2b9', this)"></div>
-            <button onclick="setEraser()" id="btn-eraser">橡皮擦</button>
-            <button onclick="undoDraw()">上一步</button>
-            <button onclick="redoDraw()">下一步</button>
+            <div class="toolbar-section">
+                <button onclick="switchToBrushMode()" id="btn-brush-mode" class="active">畫筆</button>
+                <button onclick="setEraserMode()" id="btn-eraser">橡皮擦</button>
+            </div>
+
+            <div class="toolbar-section">
+                <div class="color-list" id="recent-colors-container"></div>
+                <div class="native-picker-wrapper" title="開啟系統調色盤">
+                    <input type="color" class="hidden-color-input" id="native-color-picker" value="#e8b4b0" onchange="handleNativeColorChange(this.value)">
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <div class="size-selector">
+                    <button class="size-btn active" id="size-s" onclick="changeActiveSize('s')">細</button>
+                    <button class="size-btn" id="size-m" onclick="changeActiveSize('m')">中</button>
+                    <button class="size-btn" id="size-l" onclick="changeActiveSize('l')">粗</button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <button onclick="undoDraw()">上一步</button>
+                <button onclick="redoDraw()">下一步</button>
+                <button onclick="clearCanvas()" style="color:var(--danger-color)">清空</button>
+            </div>
         </div>
 
         <div class="nav-right">
@@ -719,29 +807,8 @@
         let currentView = 'month'; 
         
         let events = JSON.parse(localStorage.getItem('chic_calendar_events')) || [
-            {
-                id: 'all-day-birthday',
-                title: '生日 🎂',
-                date: '2026-07-07',
-                isAllDay: true,
-                isRepeat: true,
-                repeatType: 'yearly',
-                endCondition: 'never',
-                color: '#d1c4e9'
-            },
-            {
-                id: 'pingpong-class',
-                title: '桌球課 🏓',
-                date: '2026-05-06',
-                isAllDay: false,
-                startTime: 18,
-                endTime: 21,
-                isRepeat: true,
-                repeatType: 'weekly',
-                endCondition: 'date',
-                endDate: '2026-06-03',
-                color: '#b9cbe3'
-            }
+            { id: 'all-day-birthday', title: '生日 🎂', date: '2026-07-07', isAllDay: true, isRepeat: true, repeatType: 'yearly', endCondition: 'never', color: '#d1c4e9' },
+            { id: 'pingpong-class', title: '桌球課 🏓', date: '2026-05-06', isAllDay: false, startTime: 18, endTime: 21, isRepeat: true, repeatType: 'weekly', endCondition: 'date', endDate: '2026-06-03', color: '#b9cbe3' }
         ];
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -749,6 +816,7 @@
             initColorSelector();
             initCanvas();
             initNotesArea();
+            renderRecentColorBar();
             renderCalendarData();
             window.addEventListener('resize', resizeCanvas);
         });
@@ -756,12 +824,8 @@
         function initTimeSelectOptions() {
             const startSelect = document.getElementById('event-start-time');
             const endSelect = document.getElementById('event-end-time');
-            for(let h=7; h<=21; h++) {
-                startSelect.innerHTML += `<option value="${h}">${h}:00</option>`;
-            }
-            for(let h=8; h<=22; h++) {
-                endSelect.innerHTML += `<option value="${h}">${h}:00</option>`;
-            }
+            for(let h=7; h<=21; h++) startSelect.innerHTML += `<option value="${h}">${h}:00</option>`;
+            for(let h=8; h<=22; h++) endSelect.innerHTML += `<option value="${h}">${h}:00</option>`;
         }
 
         function initColorSelector() {
@@ -808,7 +872,6 @@
             } else if(view === 'week') {
                 document.getElementById('view-week').classList.add('active');
             }
-            
             adaptCanvasToCurrentView();
         }
 
@@ -819,11 +882,7 @@
             for(let m=0; m<12; m++) {
                 const box = document.createElement('div');
                 box.className = 'year-month-box';
-                box.onclick = () => {
-                    currentMonth = m;
-                    switchView('month');
-                    renderCalendarData();
-                };
+                box.onclick = () => { currentMonth = m; switchView('month'); renderCalendarData(); };
                 let monthTitle = document.createElement('div');
                 monthTitle.className = 'year-month-title';
                 monthTitle.innerText = `${m+1}月`;
@@ -861,7 +920,6 @@
             for(let d=1; d<=totalDays; d++) {
                 const cell = document.createElement('div');
                 cell.className = 'month-day-cell';
-                
                 const dayNum = document.createElement('div');
                 dayNum.className = 'month-day-num';
                 dayNum.innerText = d;
@@ -877,18 +935,12 @@
                         const dot = document.createElement('div');
                         dot.className = 'month-event-dot';
                         dot.style.backgroundColor = e.color;
-                        dot.onclick = (event) => {
-                            event.stopPropagation();
-                            openEventModalForEdit(e.id);
-                        };
+                        dot.onclick = (event) => { event.stopPropagation(); openEventModalForEdit(e.id); };
                         dotContainer.appendChild(dot);
                     });
                     cell.appendChild(dotContainer);
                 }
-                
-                cell.onclick = () => {
-                    jumpToWeekView(new Date(currentYear, currentMonth, d));
-                };
+                cell.onclick = () => { jumpToWeekView(new Date(currentYear, currentMonth, d)); };
                 container.appendChild(cell);
             }
         }
@@ -923,16 +975,8 @@
                 
                 const headerCell = document.createElement('div');
                 headerCell.className = 'week-header-cell';
-                headerCell.innerHTML = `
-                    <div class="week-day-name">${daysNames[i]}</div>
-                    <div class="week-day-date">${d.getDate()}</div>
-                `;
-                headerCell.onclick = () => {
-                    currentMonth = d.getMonth();
-                    currentYear = d.getFullYear();
-                    switchView('month');
-                    renderCalendarData();
-                };
+                headerCell.innerHTML = `<div class="week-day-name">${daysNames[i]}</div><div class="week-day-date">${d.getDate()}</div>`;
+                headerCell.onclick = () => { currentMonth = d.getMonth(); currentYear = d.getFullYear(); switchView('month'); renderCalendarData(); };
                 headerRow.appendChild(headerCell);
                 
                 const adCell = document.createElement('div');
@@ -952,13 +996,10 @@
                 columnsContainer.appendChild(dayCol);
             }
             
-            for(let h=7; h<=22; h++) {
-                timeCol.innerHTML += `<div class="time-label">${h}:00</div>`;
-            }
+            for(let h=7; h<=22; h++) timeCol.innerHTML += `<div class="time-label">${h}:00</div>`;
             
             weekDates.forEach((dateObj, dayIndex) => {
                 const dayEvents = getEventsForDate(dateObj);
-                
                 dayEvents.forEach(ev => {
                     if(ev.isAllDay) {
                         const adTarget = document.getElementById(`allday-col-${dayIndex}`);
@@ -971,7 +1012,6 @@
                     } else {
                         const startHour = ev.startTime;
                         const endHour = ev.endTime;
-                        
                         if(startHour >= 7 && startHour <= 22) {
                             const colTarget = document.getElementById(`week-col-${dayIndex}`);
                             const block = document.createElement('div');
@@ -981,10 +1021,8 @@
                             
                             const topOffset = (startHour - 7) * 60;
                             const heightSize = (endHour - startHour) * 60;
-                            
                             block.style.top = `${topOffset + 4}px`;
                             block.style.height = `${heightSize - 8}px`;
-                            
                             block.onclick = () => openEventModalForEdit(ev.id);
                             colTarget.appendChild(block);
                         }
@@ -1003,26 +1041,17 @@
             events.forEach(e => {
                 let eDate = new Date(e.date);
                 let eZero = new Date(eDate.getFullYear(), eDate.getMonth(), eDate.getDate()).getTime();
-                
                 if(targetZero < eZero) return;
-                
                 if(e.endCondition === 'date' && e.endDate) {
                     let endZero = new Date(e.endDate).getTime();
                     if(targetZero > endZero) return;
                 }
-                
                 if(!e.isRepeat) {
                     if(targetZero === eZero) matched.push(e);
                 } else {
-                    if(e.repeatType === 'weekly') {
-                        if(eDate.getDay() === targetDate.getDay()) matched.push(e);
-                    } else if(e.repeatType === 'monthly') {
-                        if(eDate.getDate() === targetDate.getDate()) matched.push(e);
-                    } else if(e.repeatType === 'yearly') {
-                        if(eDate.getMonth() === targetDate.getMonth() && eDate.getDate() === targetDate.getDate()) {
-                            matched.push(e);
-                        }
-                    }
+                    if(e.repeatType === 'weekly') { if(eDate.getDay() === targetDate.getDay()) matched.push(e); }
+                    else if(e.repeatType === 'monthly') { if(eDate.getDate() === targetDate.getDate()) matched.push(e); }
+                    else if(e.repeatType === 'yearly') { if(eDate.getMonth() === targetDate.getMonth() && eDate.getDate() === targetDate.getDate()) matched.push(e); }
                 }
             });
             return matched;
@@ -1040,11 +1069,9 @@
             document.getElementById('event-repeat-type').value = 'weekly';
             document.getElementById('event-end-condition').value = 'never';
             document.getElementById('event-repeat-end-date').value = '';
-            
             const opts = document.querySelectorAll('.color-opt');
             opts.forEach(o => o.classList.remove('selected'));
             opts[0].classList.add('selected');
-
             toggleModalTimeFields();
             toggleModalRepeatFields();
             toggleModalEndDatePicker();
@@ -1060,63 +1087,38 @@
         function openEventModalForEdit(eventId) {
             const ev = events.find(e => e.id === eventId);
             if(!ev) return;
-
             resetModalFields();
             document.getElementById('modal-view-title').innerText = '編輯行事曆事件';
             document.getElementById('btn-delete-event').style.display = 'block';
-            
             document.getElementById('editing-event-id').value = ev.id;
             document.getElementById('event-title').value = ev.title;
             document.getElementById('event-date').value = ev.date;
             document.getElementById('event-allday').checked = ev.isAllDay;
-            
             if(!ev.isAllDay) {
                 document.getElementById('event-start-time').value = ev.startTime;
                 document.getElementById('event-end-time').value = ev.endTime;
             }
-            
             document.getElementById('event-repeat').checked = ev.isRepeat;
             if(ev.isRepeat) {
                 document.getElementById('event-repeat-type').value = ev.repeatType;
                 document.getElementById('event-end-condition').value = ev.endCondition;
-                if(ev.endCondition === 'date') {
-                    document.getElementById('event-repeat-end-date').value = ev.endDate;
-                }
+                if(ev.endCondition === 'date') document.getElementById('event-repeat-end-date').value = ev.endDate;
             }
-
             const opts = document.querySelectorAll('.color-opt');
             opts.forEach(o => {
                 o.classList.remove('selected');
-                if(o.getAttribute('data-color') === ev.color) {
-                    o.classList.add('selected');
-                }
+                if(o.getAttribute('data-color') === ev.color) o.classList.add('selected');
             });
-
             toggleModalTimeFields();
             toggleModalRepeatFields();
             toggleModalEndDatePicker();
-            
             document.getElementById('event-modal').classList.add('active');
         }
 
-        function closeEventModal() {
-            document.getElementById('event-modal').classList.remove('active');
-        }
-
-        function toggleModalTimeFields() {
-            const isAllDay = document.getElementById('event-allday').checked;
-            document.getElementById('modal-time-range').style.display = isAllDay ? 'none' : 'block';
-        }
-
-        function toggleModalRepeatFields() {
-            const isRepeat = document.getElementById('event-repeat').checked;
-            document.getElementById('modal-repeat-details').style.display = isRepeat ? 'block' : 'none';
-        }
-
-        function toggleModalEndDatePicker() {
-            const condition = document.getElementById('event-end-condition').value;
-            document.getElementById('modal-repeat-end-date-wrapper').style.display = condition === 'date' ? 'block' : 'none';
-        }
+        function closeEventModal() { document.getElementById('event-modal').classList.remove('active'); }
+        function toggleModalTimeFields() { document.getElementById('modal-time-range').style.display = document.getElementById('event-allday').checked ? 'none' : 'block'; }
+        function toggleModalRepeatFields() { document.getElementById('modal-repeat-details').style.display = document.getElementById('event-repeat').checked ? 'block' : 'none'; }
+        function toggleModalEndDatePicker() { document.getElementById('modal-repeat-end-date-wrapper').style.display = document.getElementById('event-end-condition').value === 'date' ? 'block' : 'none'; }
 
         function saveEvent() {
             const editingId = document.getElementById('editing-event-id').value;
@@ -1131,23 +1133,16 @@
             const endDate = document.getElementById('event-repeat-end-date').value;
             const color = document.querySelector('.color-opt.selected').getAttribute('data-color');
 
-            if(!title || !date) {
-                alert('請完整填寫事件名稱與日期');
-                return;
-            }
+            if(!title || !date) { alert('請完整填寫事件名稱與日期'); return; }
 
             const eventData = {
                 id: editingId ? editingId : 'evt-' + Date.now(),
-                title,
-                date,
-                isAllDay,
+                title, date, isAllDay,
                 startTime: isAllDay ? null : startTime,
                 endTime: isAllDay ? null : endTime,
-                isRepeat,
-                repeatType: isRepeat ? repeatType : null,
+                isRepeat, repeatType: isRepeat ? repeatType : null,
                 endCondition: isRepeat ? endCondition : null,
-                endDate: (isRepeat && endCondition === 'date') ? endDate : null,
-                color
+                endDate: (isRepeat && endCondition === 'date') ? endDate : null, color
             };
 
             if(editingId) {
@@ -1156,40 +1151,105 @@
             } else {
                 events.push(eventData);
             }
-
-            syncEventsToStorage();
-            closeEventModal();
-            renderCalendarData();
+            syncEventsToStorage(); closeEventModal(); renderCalendarData();
         }
 
         function deleteCurrentEvent() {
             const editingId = document.getElementById('editing-event-id').value;
             if(!editingId) return;
-
             if(confirm('確定要永久刪除此事件嗎？')) {
                 events = events.filter(e => e.id !== editingId);
-                syncEventsToStorage();
-                closeEventModal();
-                renderCalendarData();
+                syncEventsToStorage(); closeEventModal(); renderCalendarData();
             }
         }
 
-        // ================= 升級版：支援滑鼠與 iPad 觸控的畫布系統 =================
+        // ================= 原生調色盤核心塗鴉系統 =================
         let canvas, ctx;
         let isDrawingMode = false;
         let isDrawing = false;
         let drawColor = '#e8b4b0';
-        let brushSize = 3;
         let isEraserMode = false;
+        
+        let lastBrushSizeLevel = 's';
+        let lastEraserSizeLevel = 'm';
+
+        const brushSizes = { s: 2, m: 5, l: 10 };
+        const eraserSizes = { s: 10, m: 25, l: 50 };
+
+        let recentColors = JSON.parse(localStorage.getItem('chic_recent_colors')) || ['#e8b4b0', '#b2c8bb', '#b9cbe3', '#e3d2b9'];
         let undoStack = [];
         let redoStack = [];
 
+        function renderRecentColorBar() {
+            const container = document.getElementById('recent-colors-container');
+            container.innerHTML = '';
+            recentColors.forEach(color => {
+                const picker = document.createElement('div');
+                picker.className = `color-picker ${(!isEraserMode && drawColor.toLowerCase() === color.toLowerCase()) ? 'active' : ''}`;
+                picker.style.backgroundColor = color;
+                picker.onclick = () => {
+                    switchToBrushMode(); 
+                    handleColorSelect(color);
+                };
+                container.appendChild(picker);
+            });
+        }
+
+        function handleColorSelect(color) {
+            drawColor = color;
+            document.getElementById('native-color-picker').value = color; // 同步原生選色器的預設色彩數值
+            renderRecentColorBar();
+        }
+
+        // 當使用者觸發系統選色盤變更色彩時
+        function handleNativeColorChange(chosenColor) {
+            switchToBrushMode();
+            handleColorSelect(chosenColor);
+            pushColorToHistory(chosenColor);
+        }
+
+        function pushColorToHistory(color) {
+            if(recentColors[0] && recentColors[0].toLowerCase() === color.toLowerCase()) return;
+            recentColors = recentColors.filter(c => c.toLowerCase() !== color.toLowerCase());
+            recentColors.unshift(color);
+            if(recentColors.length > 5) recentColors.pop();
+            localStorage.setItem('chic_recent_colors', JSON.stringify(recentColors));
+            renderRecentColorBar();
+        }
+
+        function switchToBrushMode() {
+            isEraserMode = false;
+            document.getElementById('btn-eraser').classList.remove('active');
+            document.getElementById('btn-brush-mode').classList.add('active');
+            syncSizeSelectorUI(lastBrushSizeLevel);
+            renderRecentColorBar();
+        }
+
+        function setEraserMode() {
+            isEraserMode = true;
+            document.getElementById('btn-brush-mode').classList.remove('active');
+            document.getElementById('btn-eraser').classList.add('active');
+            document.querySelectorAll('.color-picker').forEach(p => p.classList.remove('active'));
+        }
+
+        function changeActiveSize(level) {
+            if (isEraserMode) {
+                lastEraserSizeLevel = level;
+            } else {
+                lastBrushSizeLevel = level;
+            }
+            syncSizeSelectorUI(level);
+        }
+
+        function syncSizeSelectorUI(activeLevel) {
+            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`size-${activeLevel}`).classList.add('active');
+        }
+
         function getCurrentStorageKey() {
-            if (currentView === 'year') {
-                return `draw_year_${currentYear}`;
-            } else if (currentView === 'month') {
-                return `draw_month_${currentYear}_${currentMonth}`;
-            } else if (currentView === 'week') {
+            if (currentView === 'year') return `draw_year_${currentYear}`;
+            if (currentView === 'month') return `draw_month_${currentYear}_${currentMonth}`;
+            if (currentView === 'week') {
                 const y = currentWeekStartDate.getFullYear();
                 const m = currentWeekStartDate.getMonth();
                 const d = currentWeekStartDate.getDate();
@@ -1202,13 +1262,11 @@
             canvas = document.getElementById('canvas-overlay');
             ctx = canvas.getContext('2d');
             
-            // 監聽傳統滑鼠事件
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseleave', stopDrawing);
             
-            // 監聽 iPad / 觸控螢幕事件
             canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
             canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
             canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -1218,7 +1276,6 @@
 
         function adaptCanvasToCurrentView() {
             if(!canvas) return;
-
             let targetPanel;
             if (currentView === 'year') targetPanel = document.getElementById('view-year');
             if (currentView === 'month') targetPanel = document.getElementById('view-month');
@@ -1227,9 +1284,7 @@
             targetPanel.appendChild(canvas);
             resizeCanvas();
             
-            undoStack = [];
-            redoStack = [];
-            
+            undoStack = []; redoStack = [];
             const key = getCurrentStorageKey();
             const savedData = localStorage.getItem(key);
             
@@ -1250,18 +1305,13 @@
         function resizeCanvas() {
             const parent = canvas.parentElement;
             if(!parent) return;
-
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
+            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
             const tempCtx = tempCanvas.getContext('2d');
-            if (canvas.width > 0 && canvas.height > 0) {
-                tempCtx.drawImage(canvas, 0, 0);
-            }
+            if (canvas.width > 0 && canvas.height > 0) tempCtx.drawImage(canvas, 0, 0);
 
             canvas.width = parent.scrollWidth;
             canvas.height = parent.scrollHeight;
-            
             ctx.drawImage(tempCanvas, 0, 0);
         }
 
@@ -1270,35 +1320,23 @@
             const btn = document.getElementById('btn-draw-toggle');
             const bar = document.getElementById('drawing-toolbar');
             if(isDrawingMode) {
-                btn.classList.add('active');
-                bar.classList.add('active');
-                canvas.classList.add('active');
+                btn.classList.add('active'); bar.classList.add('active'); canvas.classList.add('active');
+                if (isEraserMode) { setEraserMode(); } else { switchToBrushMode(); }
             } else {
-                btn.classList.remove('active');
-                bar.classList.remove('active');
-                canvas.classList.remove('active');
+                btn.classList.remove('active'); bar.classList.remove('active'); canvas.classList.remove('active');
             }
         }
 
-        function setDrawColor(color, element) {
-            isEraserMode = false;
-            drawColor = color;
-            document.getElementById('btn-eraser').classList.remove('active');
-            document.querySelectorAll('.color-picker').forEach(p => p.classList.remove('active'));
-            element.classList.add('active');
-        }
-
-        function setEraser() {
-            isEraserMode = true;
-            document.querySelectorAll('.color-picker').forEach(p => p.classList.remove('active'));
-            document.getElementById('btn-eraser').classList.add('active');
-        }
-
-        // --- 繪圖邏輯核心 ---
+        // --- 繪圖核心流程 ---
         function startDrawingProcess(clientX, clientY) {
             if(!isDrawingMode) return;
             isDrawing = true;
             redoStack = [];
+            
+            if(!isEraserMode) {
+                pushColorToHistory(drawColor);
+            }
+
             ctx.beginPath();
             const rect = canvas.getBoundingClientRect();
             ctx.moveTo(clientX - rect.left, clientY - rect.top);
@@ -1310,7 +1348,7 @@
             const x = clientX - rect.left;
             const y = clientY - rect.top;
 
-            ctx.lineWidth = isEraserMode ? 24 : brushSize;
+            ctx.lineWidth = isEraserMode ? eraserSizes[lastEraserSizeLevel] : brushSizes[lastBrushSizeLevel];
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
@@ -1334,50 +1372,37 @@
             }
         }
 
-        // --- 滑鼠事件對接 ---
         function startDrawing(e) { startDrawingProcess(e.clientX, e.clientY); }
         function draw(e) { drawProcess(e.clientX, e.clientY); }
         function stopDrawing() { stopDrawingProcess(); }
 
-        // --- iPad / 觸控事件對接 ---
         function handleTouchStart(e) {
             if(!isDrawingMode) return;
-            e.preventDefault(); // 阻止頁面滾動
+            e.preventDefault();
             const touch = e.touches[0];
             startDrawingProcess(touch.clientX, touch.clientY);
         }
-
         function handleTouchMove(e) {
             if(!isDrawingMode) return;
             e.preventDefault();
             const touch = e.touches[0];
             drawProcess(touch.clientX, touch.clientY);
         }
+        function handleTouchEnd(e) { if(!isDrawingMode) return; stopDrawingProcess(); }
 
-        function handleTouchEnd(e) {
-            if(!isDrawingMode) return;
-            stopDrawingProcess();
-        }
-
-        // --- 狀態儲存與撤銷邏輯 ---
+        // --- 還原控制 ---
         function saveCanvasState() {
             const dataUrl = canvas.toDataURL();
             undoStack.push(dataUrl);
             if(undoStack.length > 25) undoStack.shift();
-            
-            const key = getCurrentStorageKey();
-            localStorage.setItem(key, dataUrl);
+            localStorage.setItem(getCurrentStorageKey(), dataUrl);
         }
 
         function undoDraw() {
-            if(undoStack.length <= 1) {
-                clearCanvas();
-                return;
-            }
+            if(undoStack.length <= 1) { clearCanvas(); return; }
             let current = undoStack.pop();
             redoStack.push(current);
-            let previousDataUrl = undoStack[undoStack.length - 1];
-            loadCanvasFromImg(previousDataUrl);
+            loadCanvasFromImg(undoStack[undoStack.length - 1]);
         }
 
         function redoDraw() {
@@ -1394,17 +1419,15 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.drawImage(img, 0, 0);
-                const key = getCurrentStorageKey();
-                localStorage.setItem(key, dataUrl);
+                localStorage.setItem(getCurrentStorageKey(), dataUrl);
             }
         }
 
         function clearCanvas() {
+            if(!confirm('確定要清空當前頁面的所有塗鴉嗎？')) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            undoStack = [];
-            redoStack = [];
-            const key = getCurrentStorageKey();
-            localStorage.removeItem(key);
+            undoStack = []; redoStack = [];
+            localStorage.removeItem(getCurrentStorageKey());
             saveCanvasState();
         }
     </script>
